@@ -11,32 +11,37 @@ export function generatePdfForCheck(
 
   // Helper function to format patient name as [last_name, first_name]
   const formatPatientName = (fullName: string): string => {
-    const nameParts = fullName.trim().split(" ");
-    if (nameParts.length < 2) return fullName;
-
-    const firstName = nameParts[0];
-    const lastName = nameParts.slice(1).join(" ");
+    // Remove any trailing "~" or "1" and trim spaces
+    const cleanName = fullName.replace(/[~1]+$/, "").trim();
+    const nameParts = cleanName.split(" ");
+    if (nameParts.length < 2) return cleanName;
+    
+    // In EDI format, last name is typically the first part
+    const lastName = nameParts[0];
+    const firstName = nameParts.slice(1).join(" ");
     return `${lastName}, ${firstName}`;
   };
 
   // Sort claims by last name, first name
   const sortedClaims = [...check.claims].sort((a, b) => {
-    const aNameParts = a.patientName.trim().split(" ");
-    const bNameParts = b.patientName.trim().split(" ");
+    // Clean names first
+    const aName = a.patientName.replace(/[~1]+$/, "").trim();
+    const bName = b.patientName.replace(/[~1]+$/, "").trim();
 
-    // Get last names (assuming format is "First Last")
-    const aLastName =
-      aNameParts.length > 1 ? aNameParts.slice(1).join(" ") : "";
-    const bLastName =
-      bNameParts.length > 1 ? bNameParts.slice(1).join(" ") : "";
+    const aNameParts = aName.split(" ");
+    const bNameParts = bName.split(" ");
+
+    // Get last names (in EDI format, last name is first)
+    const aLastName = aNameParts[0] || "";
+    const bLastName = bNameParts[0] || "";
 
     // Compare last names first
     const lastNameComparison = aLastName.localeCompare(bLastName);
     if (lastNameComparison !== 0) return lastNameComparison;
 
     // If last names are the same, compare first names
-    const aFirstName = aNameParts.length > 0 ? aNameParts[0] : "";
-    const bFirstName = bNameParts.length > 0 ? bNameParts[0] : "";
+    const aFirstName = aNameParts.slice(1).join(" ");
+    const bFirstName = bNameParts.slice(1).join(" ");
     return aFirstName.localeCompare(bFirstName);
   });
 

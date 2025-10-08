@@ -109,6 +109,12 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
         currentCheck.payerName = cleanElement(elements[2]);
       }
     }
+    // check number
+    else if (segId === "TRN" && elements[1] === "1") {
+      if (currentCheck) {
+        currentCheck.checkNumber = cleanElement(elements[2]) || "";
+      }
+    }
 
     // ===== CLAIM-LEVEL =====
     else if (segId === "CLP") {
@@ -196,12 +202,12 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
     // Service Date (DTM*472)
     else if (segId === "DTM" && elements[1] === "472") {
       const formattedDate = formatDate(elements[2]);
-      
+
       // If we have a current service line, set its DOS
       if (currentServiceLine) {
         currentServiceLine.dosStart = formattedDate;
         currentServiceLine.dosEnd = formattedDate;
-      } 
+      }
       // Also set at claim level if we have a claim
       if (currentClaim) {
         currentClaim.dosStart = formattedDate;

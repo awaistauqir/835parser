@@ -76,18 +76,9 @@ function ServiceLineTable({ serviceLines }: { serviceLines: ServiceLine[] }) {
         <TableRow>
           <TableCell>DOS</TableCell>
 
-          <TableCell>
-            Paid
-            <br />
-            Units
-          </TableCell>
+          <TableCell>Paid Units</TableCell>
           <TableCell>Proc/Rev Code</TableCell>
-          <TableCell>
-            Billed
-            <br />
-            Amount
-          </TableCell>
-
+          <TableCell>Billed Amount</TableCell>
           <TableCell>Adjusts</TableCell>
           <TableCell>Provider Paid</TableCell>
         </TableRow>
@@ -145,8 +136,8 @@ function ClaimRow({ claim }: { claim: Claim }) {
     const cleaned = cleanName(claim.patientName);
     const parts = cleaned.split(" ");
     if (parts.length >= 2) {
-      const last = parts[parts.length - 1];
-      const first = parts.slice(0, -1).join(" ");
+      const first = parts[parts.length - 1];
+      const last = parts.slice(0, -1).join(" ");
       return `${last}, ${first}`;
     }
     return cleaned;
