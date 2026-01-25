@@ -180,9 +180,8 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
         .trim();
       // Reformat to "Last, First"
       if (firstName) {
-        currentClaim.patientName = `${lastName}, ${firstName}${
-          middle ? ` ${middle}` : ""
-        }`;
+        currentClaim.patientName = `${lastName}, ${firstName}${middle ? ` ${middle}` : ""
+          }`;
       }
     }
 
@@ -274,17 +273,17 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
       // PLB03-1: Adjustment Reason Code, PLB03-2: Reference ID
       // PLB04: Adjustment Amount
       // Can have up to 6 adjustment pairs (PLB03-PLB14)
-      for (let i = 2; i < elements.length; i += 2) {
+      for (let i = 3; i < elements.length; i += 2) {
         const reasonComposite = cleanElement(elements[i]);
         const amount = parseFloat(cleanElement(elements[i + 1])) || 0;
-        
+
         if (!reasonComposite) continue;
-        
+
         // Split composite element (reason:referenceId)
         const compositeParts = reasonComposite.split(":");
         const reasonCode = compositeParts[0] || "";
         const referenceId = compositeParts[1] || "";
-        
+
         if (reasonCode && amount !== 0) {
           currentCheck.plb.push({
             reasonCode,
