@@ -15,7 +15,7 @@ export function generatePdfForCheck(
     const cleanName = fullName.replace(/[~1]+$/, "").trim();
     const nameParts = cleanName.split(" ");
     if (nameParts.length < 2) return cleanName;
-    
+
     // In EDI format, last name is typically the first part
     const lastName = nameParts[0];
     const firstName = nameParts.slice(1).join(" ");
@@ -60,7 +60,7 @@ export function generatePdfForCheck(
   doc.setFontSize(12);
   const headerLines = [
     `Issue Date: ${check.issueDate}`,
-    `Production Date: ${check.productionDate}`,
+    `Production Date: ${check.productionDate || "N/A"}`,
     `Amount: $${check.checkAmount.toFixed(2)}`,
     `Payer: ${check.payerName} (${check.payerId})`,
     `Provider: ${check.providerName} (NPI: ${check.providerNpi})`,
@@ -72,6 +72,63 @@ export function generatePdfForCheck(
   });
 
   y += 10;
+
+  // PLB Adjustments Section (if present)
+  if (check.plb && check.plb.length > 0) {
+    doc.setFontSize(12);
+    doc.setFont(undefined as any, "bold");
+    doc.text("Provider Level Balance (PLB) Adjustments:", 14, y);
+    doc.setFont(undefined as any, "normal");
+    y += 8;
+
+    const plbReasonDescriptions: Record<string, string> = {
+      "WO": "Overpayment Recovery",
+      "FB": "Forward Balance",
+      "IR": "Interest",
+      "L6": "Interest Owed",
+      "72": "Authorized Return",
+      "CS": "Adjustment (≥$50)",
+      "C5": "Temporary Allowance (<$50)",
+      "PI": "Payer Initiated Reduction",
+      "LE": "Levy",
+      "AH": "Origination Fee",
+      "AM": "Applied to Borrowed Amount",
+      "AP": "Acceleration of Benefits",
+      "B2": "Rebate",
+      "B3": "Recovery Allowance",
+      "BD": "Bad Debt Adjustment",
+    };
+
+    const plbData = check.plb.map((adj) => [
+      adj.reasonCode,
+      plbReasonDescriptions[adj.reasonCode] || "Provider Adjustment",
+      adj.referenceId || "-",
+      `${adj.amount > 0 ? "-" : "+"}$${Math.abs(adj.amount).toFixed(2)}`,
+    ]);
+
+    // Calculate total PLB adjustment
+    const totalPlbAdjustment = check.plb.reduce((sum, adj) => sum + adj.amount, 0);
+    plbData.push([
+      "",
+      "Total PLB Adjustment",
+      "",
+      `${totalPlbAdjustment > 0 ? "-" : totalPlbAdjustment < 0 ? "+" : ""}$${Math.abs(totalPlbAdjustment).toFixed(2)}`,
+    ]);
+
+    autoTable(doc, {
+      startY: y,
+      head: [["Code", "Description", "Reference ID", "Amount"]],
+      body: plbData,
+      theme: "grid",
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [255, 152, 0] }, // Orange color for PLB
+      columnStyles: {
+        3: { halign: "right" },
+      },
+    });
+
+    y = (doc as any).lastAutoTable.finalY + 10;
+  }
 
   // Claims Summary Table
   const claimsData = sortedClaims.map((c) => [
