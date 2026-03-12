@@ -51,6 +51,17 @@ function parseAdjustments(segments: string[], category: string): Adjustment[] {
   return adj;
 }
 
+// Helper: compute fallback allowed amount for a service line
+// If AMT*B6 was not provided, use chargedAmount - CO-45 adjustment
+function finalizeServiceLineAllowed(sl: ServiceLine): void {
+  if (sl.allowedAmount === 0) {
+    const co45 = sl.adjustments
+      .filter((a) => a.code === "CO-45")
+      .reduce((sum, a) => sum + a.amount, 0);
+    sl.allowedAmount = sl.chargedAmount - co45;
+  }
+}
+
 export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
   // ✅ Split by segment terminator (~), NOT newlines
   const segments = ediText
@@ -120,11 +131,16 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
     else if (segId === "CLP") {
       // Finalize previous service line
       if (currentServiceLine && currentClaim) {
+        finalizeServiceLineAllowed(currentServiceLine);
         currentClaim.serviceLines.push(currentServiceLine);
         currentServiceLine = null;
       }
       // Finalize previous claim
       if (currentClaim && currentCheck) {
+        // Aggregate allowed amount from service lines
+        currentClaim.allowedAmount = currentClaim.serviceLines.reduce(
+          (sum, sl) => sum + sl.allowedAmount, 0
+        );
         currentCheck.claims.push(currentClaim);
       }
 
@@ -134,12 +150,12 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
         patientControlNumber: elements[1] || "",
         claimNumber: elements[1] || "",
         providerClaimReference: "", // from REF*6R
-        icn: "", // from REF*EA
+        icn: "", // from REF*F8 (payer claim control number)
         dosStart: "",
         dosEnd: "",
         statementFromDate: "",
         chargedAmount: parseFloat(elements[3]) || 0,
-        allowedAmount: 0, // from AMT*B6
+        allowedAmount: 0, // aggregated from service lines
         paidAmount: parseFloat(elements[4]) || 0,
         patientResponsibility: 0, // sum of CAS*PR adjustments
         claimFilingIndicator: elements[6] || "",
@@ -230,6 +246,7 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
     // Service Line (SVC)
     else if (segId === "SVC" && currentClaim) {
       if (currentServiceLine) {
+        finalizeServiceLineAllowed(currentServiceLine);
         currentClaim.serviceLines.push(currentServiceLine);
       }
 
@@ -274,18 +291,14 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
       currentClaim.providerClaimReference = elements[2] || "";
     }
 
-    // ICN - Internal Control Number (REF*EA)
-    else if (segId === "REF" && elements[1] === "EA" && currentClaim) {
+    // ICN - Payer Claim Control Number (REF*F8)
+    else if (segId === "REF" && elements[1] === "F8" && currentClaim) {
       currentClaim.icn = elements[2] || "";
     }
 
-    // Allowed Amount (AMT*B6) — per service line when available, else claim level
-    else if (segId === "AMT" && elements[1] === "B6" && currentClaim) {
-      const amt = parseFloat(elements[2]) || 0;
-      if (currentServiceLine) {
-        currentServiceLine.allowedAmount = amt;
-      }
-      currentClaim.allowedAmount = amt;
+    // Allowed Amount (AMT*B6) — strictly per service line only
+    else if (segId === "AMT" && elements[1] === "B6" && currentServiceLine) {
+      currentServiceLine.allowedAmount = parseFloat(elements[2]) || 0;
     }
 
     // Provider Level Balance (PLB) - Provider-level adjustments
@@ -320,10 +333,15 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
     // ===== END OF TRANSACTION =====
     else if (segId === "SE") {
       if (currentServiceLine && currentClaim) {
+        finalizeServiceLineAllowed(currentServiceLine);
         currentClaim.serviceLines.push(currentServiceLine);
         currentServiceLine = null;
       }
       if (currentClaim && currentCheck) {
+        // Aggregate allowed amount from service lines
+        currentClaim.allowedAmount = currentClaim.serviceLines.reduce(
+          (sum, sl) => sum + sl.allowedAmount, 0
+        );
         currentCheck.claims.push(currentClaim);
         currentClaim = null;
       }
@@ -336,9 +354,14 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
 
   // Finalize any dangling data
   if (currentServiceLine && currentClaim) {
+    finalizeServiceLineAllowed(currentServiceLine);
     currentClaim.serviceLines.push(currentServiceLine);
   }
   if (currentClaim && currentCheck) {
+    // Aggregate allowed amount from service lines
+    currentClaim.allowedAmount = currentClaim.serviceLines.reduce(
+      (sum, sl) => sum + sl.allowedAmount, 0
+    );
     currentCheck.claims.push(currentClaim);
   }
   if (currentCheck) {

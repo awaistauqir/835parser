@@ -172,7 +172,7 @@ export function generatePdfForCheck(
       `Patient: ${formatPatientName(claim.patientName)}`,
       `Patient Control Number: ${claim.patientControlNumber}`,
       `Claim Number: ${claim.claimNumber}`,
-      `ICN: ${claim.claimNumber}`,
+      `ICN: ${claim.icn || "N/A"}`,
       `Date of Service: ${claim.dosStart} to ${claim.dosEnd}`,
       `Charged Amount: $${claim.chargedAmount.toFixed(2)}`,
       `Paid Amount: $${claim.paidAmount.toFixed(2)}`,
@@ -192,6 +192,7 @@ export function generatePdfForCheck(
       sl.dosStart || claim.dosStart,
       sl.units.toString(),
       `$${sl.chargedAmount.toFixed(2)}`,
+      `$${(sl.allowedAmount || 0).toFixed(2)}`,
       `$${sl.paidAmount.toFixed(2)}`,
       sl.adjustments
         .map((a) => `${a.code}: $${a.amount.toFixed(2)}`)
@@ -207,6 +208,7 @@ export function generatePdfForCheck(
           "DOS",
           "Units",
           "Charged",
+          "Allowed Amt",
           "Paid",
           "Adjustments",
         ],
@@ -216,7 +218,7 @@ export function generatePdfForCheck(
       styles: { fontSize: 9 },
       headStyles: { fillColor: [33, 150, 243] },
       columnStyles: {
-        6: { cellWidth: 50 },
+        7: { cellWidth: 45 },
       },
     });
 
