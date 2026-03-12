@@ -1,5 +1,8 @@
+"use client";
+
+import { useState } from "react";
 import { ParsedEdiFile } from "@/types/edi";
-import { Box, Typography, Paper, Chip, Divider } from "@mui/material";
+import { Box, Typography, Paper, Chip, Divider, Button, ButtonGroup } from "@mui/material";
 import ClaimTable from "./ClaimTable";
 import PdfExport from "./PdfExport";
 
@@ -23,8 +26,13 @@ const PLB_REASON_CODES: Record<string, string> = {
 };
 
 export default function EdiViewer({ file }: { file: ParsedEdiFile }) {
-  const check = file.checks[0]; // Assume 1 check per file for simplicity
+  const [activeCheckIndex, setActiveCheckIndex] = useState(0);
 
+  if (!file.checks || file.checks.length === 0) {
+    return <Typography>No data found.</Typography>;
+  }
+
+  const check = file.checks[activeCheckIndex];
   if (!check) return <Typography>No data found.</Typography>;
 
   // Calculate total PLB adjustment
@@ -32,6 +40,28 @@ export default function EdiViewer({ file }: { file: ParsedEdiFile }) {
 
   return (
     <Box>
+      {/* Check selector buttons */}
+      {file.checks.length > 1 && (
+        <Paper sx={{ p: 2, mb: 3 }}>
+          <Typography variant="subtitle2" sx={{ mb: 1, color: "text.secondary" }}>
+            This file contains {file.checks.length} checks — select one to view:
+          </Typography>
+          <ButtonGroup variant="outlined" sx={{ flexWrap: "wrap", gap: 0.5 }}>
+            {file.checks.map((chk, idx) => (
+              <Button
+                key={idx}
+                variant={activeCheckIndex === idx ? "contained" : "outlined"}
+                onClick={() => setActiveCheckIndex(idx)}
+                sx={{ textTransform: "none" }}
+              >
+                Check #{chk.checkNumber || idx + 1}
+                {chk.checkAmount != null && ` ($${chk.checkAmount.toFixed(2)})`}
+              </Button>
+            ))}
+          </ButtonGroup>
+        </Paper>
+      )}
+
       <Paper sx={{ p: 2, mb: 3 }}>
         <Typography variant="h6">Check Summary</Typography>
         <Typography>Check #: {check.checkNumber}</Typography>
@@ -54,7 +84,7 @@ export default function EdiViewer({ file }: { file: ParsedEdiFile }) {
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
             {check.plb.map((adj, idx) => (
               <Box
-                key={idx}
+                key={idx as any}
                 sx={{
                   display: "flex",
                   justifyContent: "space-between",

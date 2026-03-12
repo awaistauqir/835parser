@@ -11,6 +11,7 @@ export interface ServiceLine {
   units: number;
   modifiers: string[];
   chargedAmount: number;
+  allowedAmount: number; // ← from AMT*B6 per service line
   paidAmount: number;
   adjustments: Adjustment[];
   dosStart?: string;
@@ -21,12 +22,15 @@ export interface Claim {
   patientName: string;
   patientControlNumber: string;
   claimNumber: string;
-  providerClaimReference: string; // ← NEW
+  providerClaimReference: string; // ← from REF*6R
+  icn: string; // ← from REF*EA (Internal Control Number)
   dosStart: string;
   dosEnd: string;
-  statementFromDate: string; // ← NEW
+  statementFromDate: string; // ← from DTM*232
   chargedAmount: number;
+  allowedAmount: number; // ← from AMT*B6
   paidAmount: number;
+  patientResponsibility: number; // ← sum of CAS*PR adjustments
   claimFilingIndicator: string; // e.g., "MC"
   claimFrequencyCode: string; // e.g., "1"
   facilityTypeCode: string; // e.g., "A"

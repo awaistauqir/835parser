@@ -134,11 +134,14 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
         patientControlNumber: elements[1] || "",
         claimNumber: elements[1] || "",
         providerClaimReference: "", // from REF*6R
+        icn: "", // from REF*EA
         dosStart: "",
         dosEnd: "",
         statementFromDate: "",
         chargedAmount: parseFloat(elements[3]) || 0,
+        allowedAmount: 0, // from AMT*B6
         paidAmount: parseFloat(elements[4]) || 0,
+        patientResponsibility: 0, // sum of CAS*PR adjustments
         claimFilingIndicator: elements[6] || "",
         claimFrequencyCode: elements[9] || "",
         facilityTypeCode: elements[8] || "",
@@ -241,6 +244,7 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
         units: currentClaim.coveredUnits, // or parse from SVC if available
         modifiers,
         chargedAmount: parseFloat(elements[2]) || 0,
+        allowedAmount: 0, // from AMT*B6 per service line
         paidAmount: parseFloat(elements[3]) || 0,
         adjustments: [],
         dosStart: currentClaim.dosStart,
@@ -258,11 +262,30 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
       } else {
         currentClaim.adjustments.push(...adjustments);
       }
+      // Accumulate patient responsibility from PR adjustments
+      if (category === "PR") {
+        const prTotal = adjustments.reduce((sum, a) => sum + a.amount, 0);
+        currentClaim.patientResponsibility += prTotal;
+      }
     }
 
     // Provider Claim Reference (REF*6R)
     else if (segId === "REF" && elements[1] === "6R" && currentClaim) {
       currentClaim.providerClaimReference = elements[2] || "";
+    }
+
+    // ICN - Internal Control Number (REF*EA)
+    else if (segId === "REF" && elements[1] === "EA" && currentClaim) {
+      currentClaim.icn = elements[2] || "";
+    }
+
+    // Allowed Amount (AMT*B6) — per service line when available, else claim level
+    else if (segId === "AMT" && elements[1] === "B6" && currentClaim) {
+      const amt = parseFloat(elements[2]) || 0;
+      if (currentServiceLine) {
+        currentServiceLine.allowedAmount = amt;
+      }
+      currentClaim.allowedAmount = amt;
     }
 
     // Provider Level Balance (PLB) - Provider-level adjustments

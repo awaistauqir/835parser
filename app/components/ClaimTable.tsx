@@ -79,6 +79,7 @@ function ServiceLineTable({ serviceLines }: { serviceLines: ServiceLine[] }) {
           <TableCell>Paid Units</TableCell>
           <TableCell>Proc/Rev Code</TableCell>
           <TableCell>Billed Amount</TableCell>
+          <TableCell>Allowed Amt</TableCell>
           <TableCell>Adjusts</TableCell>
           <TableCell>Provider Paid</TableCell>
         </TableRow>
@@ -100,6 +101,7 @@ function ServiceLineTable({ serviceLines }: { serviceLines: ServiceLine[] }) {
                 )}
               </TableCell>
               <TableCell>${svc.chargedAmount.toFixed(2)}</TableCell>
+              <TableCell>${(svc.allowedAmount || 0).toFixed(2)}</TableCell>
 
               <TableCell>
                 {svc.adjustments.map((svc, i) => (
@@ -178,6 +180,50 @@ function ClaimRow({ claim }: { claim: Claim }) {
               <Typography variant="h6" gutterBottom>
                 Claim Details - Ticket #{ticketNumber}
               </Typography>
+
+              {/* Key claim info: Allowed Amount, ICN, Patient Responsibility */}
+              <Box
+                sx={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 2,
+                  mb: 2,
+                  p: 1.5,
+                  borderRadius: 1,
+                  backgroundColor: "rgba(0, 0, 0, 0.03)",
+                }}
+              >
+                {claim.icn && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      ICN
+                    </Typography>
+                    <Typography variant="body2" fontWeight="bold">
+                      {claim.icn}
+                    </Typography>
+                  </Box>
+                )}
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Allowed Amount
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold" color="primary.main">
+                    ${(claim.allowedAmount || 0).toFixed(2)}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Pt. Responsibility
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    fontWeight="bold"
+                    color={claim.patientResponsibility > 0 ? "warning.main" : "text.primary"}
+                  >
+                    ${(claim.patientResponsibility || 0).toFixed(2)}
+                  </Typography>
+                </Box>
+              </Box>
 
               <ServiceLineTable serviceLines={claim.serviceLines} />
 
