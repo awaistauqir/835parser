@@ -237,6 +237,38 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
         currentClaim.dosEnd = formattedDate; // single date
       }
     }
+    // ICN - Payer Claim Control Number (REF*F8)
+    else if (segId === "REF" && elements[1] === "F8" && currentClaim) {
+      currentClaim.icn = elements[2] || "";
+    }
+
+    // Patient Insurance ID (REF*6R)
+    else if (segId === "REF" && elements[1] === "6R" && currentClaim) {
+      currentClaim.patientInsuranceId = elements[2] || "";
+    }
+
+    // Patient Date of Birth (DMG*D8)
+    else if (segId === "DMG" && elements[1] === "D8" && currentClaim) {
+      currentClaim.patientDob = formatDate(elements[2]);
+
+    }
+
+    // Patient Gender (DMG*D8)
+    else if (segId === "DMG" && elements[1] === "D8" && currentClaim) {
+      currentClaim.patientGender = elements[3] || "";
+    }
+    // Provider Name (NM1*82)
+    else if (segId === "NM1" && elements[1] === "82" && currentClaim) {
+      currentClaim.providerName = elements[3] || "";
+    }
+    // Provider NPI (NM1*82)
+    else if (segId === "NM1" && elements[1] === "82" && currentClaim) {
+      currentClaim.providerNpi = elements[9] || "";
+    }
+    // Provider Taxonomy (NM1*82)
+    else if (segId === "NM1" && elements[1] === "82" && currentClaim) {
+      currentClaim.providerTaxonomy = elements[10] || "";
+    }
 
     // Covered Units (QTY*CA)
     else if (segId === "QTY" && elements[1] === "CA" && currentClaim) {
@@ -299,6 +331,11 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
     // Allowed Amount (AMT*B6) — strictly per service line only
     else if (segId === "AMT" && elements[1] === "B6" && currentServiceLine) {
       currentServiceLine.allowedAmount = parseFloat(elements[2]) || 0;
+    }
+
+    // Per Day Limit (AMT*DY) — claim-level per day limit
+    else if (segId === "AMT" && elements[1] === "DY" && currentClaim) {
+      currentClaim.perDayLimit = parseFloat(elements[2]) || 0;
     }
 
     // Provider Level Balance (PLB) - Provider-level adjustments

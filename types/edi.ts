@@ -20,6 +20,13 @@ export interface ServiceLine {
 
 export interface Claim {
   patientName: string;
+  patientInsuranceId: string; // ← from NM1*QC element 9 (member ID)
+  patientDob: string; // ← from DMG*D8 (date of birth)
+  renderingProvider: string; // ← from NM1*82 at claim level
+  patientGender: string; // ← from DMG*D8 (gender)
+  providerName: string; // ← from NM1*82 at claim level
+  providerNpi: string; // ← from NM1*82 at claim level
+  providerTaxonomy: string; // ← from NM1*82 at claim level
   patientControlNumber: string;
   claimNumber: string;
   providerClaimReference: string; // ← from REF*6R
@@ -38,6 +45,7 @@ export interface Claim {
   coveredUnits: number; // ← from QTY*CA
   adjustments: Adjustment[];
   remarkCodes: string[];
+  perDayLimit?: number; // ← from AMT*DY (per day limit)
   serviceLines: ServiceLine[];
 }
 

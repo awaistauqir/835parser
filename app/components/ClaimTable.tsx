@@ -223,6 +223,20 @@ function ClaimRow({ claim }: { claim: Claim }) {
                     ${(claim.patientResponsibility || 0).toFixed(2)}
                   </Typography>
                 </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Per Day Limit
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    fontWeight="bold"
+                    color={claim.perDayLimit ? "info.main" : "text.secondary"}
+                  >
+                    {claim.perDayLimit != null && claim.perDayLimit > 0
+                      ? `$${claim.perDayLimit.toFixed(2)}`
+                      : "—"}
+                  </Typography>
+                </Box>
               </Box>
 
               <ServiceLineTable serviceLines={claim.serviceLines} />
