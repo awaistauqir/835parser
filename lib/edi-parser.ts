@@ -147,6 +147,13 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
       // Start NEW claim
       currentClaim = {
         patientName: "",
+        patientInsuranceId: "", // from REF*6R or NM1*QC
+        patientDob: "", // from DMG*D8
+        renderingProvider: "", // from NM1*82
+        patientGender: "", // from DMG*D8
+        providerName: "", // from NM1*82
+        providerNpi: "", // from NM1*82
+        providerTaxonomy: "", // from NM1*82
         patientControlNumber: elements[1] || "",
         claimNumber: elements[1] || "",
         providerClaimReference: "", // from REF*6R
@@ -204,11 +211,19 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
       }
     }
 
-    // Rendering provider (NM1*82)
-    else if (segId === "NM1" && elements[1] === "82" && currentCheck) {
-      currentCheck.providerName = elements[3] || "";
-      if (elements[8] === "XX") {
-        currentCheck.providerNpi = elements[9] || "";
+    // Rendering provider (NM1*82) — set at both check and claim level
+    else if (segId === "NM1" && elements[1] === "82") {
+      if (currentCheck) {
+        currentCheck.providerName = elements[3] || "";
+        if (elements[8] === "XX") {
+          currentCheck.providerNpi = elements[9] || "";
+        }
+      }
+      if (currentClaim) {
+        currentClaim.renderingProvider = `${elements[3] || ""}${elements[4] ? ", " + elements[4] : ""}`;
+        currentClaim.providerName = elements[3] || "";
+        currentClaim.providerNpi = elements[9] || "";
+        currentClaim.providerTaxonomy = elements[10] || "";
       }
     }
 
@@ -247,27 +262,10 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
       currentClaim.patientInsuranceId = elements[2] || "";
     }
 
-    // Patient Date of Birth (DMG*D8)
+    // Patient Demographics (DMG*D8) — DOB and Gender
     else if (segId === "DMG" && elements[1] === "D8" && currentClaim) {
       currentClaim.patientDob = formatDate(elements[2]);
-
-    }
-
-    // Patient Gender (DMG*D8)
-    else if (segId === "DMG" && elements[1] === "D8" && currentClaim) {
       currentClaim.patientGender = elements[3] || "";
-    }
-    // Provider Name (NM1*82)
-    else if (segId === "NM1" && elements[1] === "82" && currentClaim) {
-      currentClaim.providerName = elements[3] || "";
-    }
-    // Provider NPI (NM1*82)
-    else if (segId === "NM1" && elements[1] === "82" && currentClaim) {
-      currentClaim.providerNpi = elements[9] || "";
-    }
-    // Provider Taxonomy (NM1*82)
-    else if (segId === "NM1" && elements[1] === "82" && currentClaim) {
-      currentClaim.providerTaxonomy = elements[10] || "";
     }
 
     // Covered Units (QTY*CA)
@@ -321,11 +319,6 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
     // Provider Claim Reference (REF*6R)
     else if (segId === "REF" && elements[1] === "6R" && currentClaim) {
       currentClaim.providerClaimReference = elements[2] || "";
-    }
-
-    // ICN - Payer Claim Control Number (REF*F8)
-    else if (segId === "REF" && elements[1] === "F8" && currentClaim) {
-      currentClaim.icn = elements[2] || "";
     }
 
     // Allowed Amount (AMT*B6) — strictly per service line only
