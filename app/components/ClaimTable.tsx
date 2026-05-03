@@ -23,11 +23,28 @@ import {
   InputLabel,
   TablePagination,
   TableSortLabel,
+  TableFooter,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
-import { Claim, ServiceLine, Adjustment } from "@/types/edi";
+import { Claim, ServiceLine } from "@/types/edi";
+
+
+// Helper for claim status
+const getClaimStatus = (code: string) => {
+  const statusMap: Record<string, string> = {
+    "1": "Primary",
+    "2": "Secondary",
+    "3": "Tertiary",
+    "4": "Denied",
+    "19": "Primary (Forwarded)",
+    "20": "Secondary (Forwarded)",
+    "21": "Tertiary (Forwarded)",
+    "22": "Reversal of Previous Payment",
+  };
+  return statusMap[code] || code;
+};
 
 // Define sort direction type
 type Order = "asc" | "desc";
@@ -85,11 +102,11 @@ function ServiceLineTable({ serviceLines }: { serviceLines: ServiceLine[] }) {
         </TableRow>
       </TableHead>
       <TableBody>
-        {serviceLines.map((svc, idx) => {
+        {serviceLines.map((svc) => {
           // Calculate adjustment buckets (simplified)
 
           return (
-            <TableRow key={idx}>
+            <TableRow key={crypto.randomUUID()}>
               <TableCell>{formatDate(svc.dosStart || "")}</TableCell>
               <TableCell>{svc.units}</TableCell>
               <TableCell>
@@ -106,7 +123,7 @@ function ServiceLineTable({ serviceLines }: { serviceLines: ServiceLine[] }) {
               <TableCell>
                 {svc.adjustments.map((svc, i) => (
                   <Chip
-                    key={i}
+                    key={crypto.randomUUID()}
                     label={`${svc.code} ${svc.amount.toFixed(2)}`}
                     size="small"
                     sx={{ mr: 0.5, mb: 0.5 }}
@@ -193,16 +210,54 @@ function ClaimRow({ claim }: { claim: Claim }) {
                   backgroundColor: "rgba(0, 0, 0, 0.03)",
                 }}
               >
-                {claim.icn && (
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">
-                      ICN
-                    </Typography>
-                    <Typography variant="body2" fontWeight="bold">
-                      {claim.icn}
-                    </Typography>
-                  </Box>
-                )}
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    ICN
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    {claim.icn || "-"}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Provider
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    {claim.providerName || "-"}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Provider NPI
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    {claim.providerNpi || "-"}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Insured ID
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    {claim.patientInsuranceId || "-"}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Processed As
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    {getClaimStatus(claim.claimStatusCode)}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Patient DOB
+                  </Typography>
+                  <Typography variant="body2" fontWeight="bold">
+                    {claim.patientDob || "-"}
+                  </Typography>
+                </Box>
                 <Box>
                   <Typography variant="caption" color="text.secondary">
                     Allowed Amount
@@ -247,8 +302,8 @@ function ClaimRow({ claim }: { claim: Claim }) {
                     Remark Codes
                   </Typography>
                   <Box display="flex" flexWrap="wrap" gap={0.5}>
-                    {claim.remarkCodes.map((code, idx) => (
-                      <Chip key={idx} label={code} size="small" />
+                    {claim.remarkCodes.map((code) => (
+                      <Chip key={crypto.randomUUID()} label={code} size="small" />
                     ))}
                   </Box>
                 </Box>
@@ -260,6 +315,42 @@ function ClaimRow({ claim }: { claim: Claim }) {
     </>
   );
 }
+
+// Descending comparator
+const descendingComparator = (
+  a: Claim,
+  b: Claim,
+  orderBy: SortableColumn
+): number => {
+  // Handle different data types appropriately
+  switch (orderBy) {
+    case "dosStart":
+      return formatDate(a.dosStart).localeCompare(formatDate(b.dosStart));
+
+    case "patientName":
+      return a.patientName.localeCompare(b.patientName);
+
+    case "claimNumber":
+      return a.claimNumber.localeCompare(b.claimNumber);
+
+    case "chargedAmount":
+    case "paidAmount":
+      return a[orderBy] - b[orderBy];
+
+    default:
+      return 0;
+  }
+};
+
+// Sorting function
+const getComparator = (
+  order: Order,
+  orderBy: SortableColumn
+): ((a: Claim, b: Claim) => number) => {
+  return order === "desc"
+    ? (a, b) => descendingComparator(a, b, orderBy)
+    : (a, b) => -descendingComparator(a, b, orderBy);
+};
 
 // ======================
 // Main Table Component
@@ -298,12 +389,13 @@ export default function ClaimTable({ claims: rawClaims }: { claims: Claim[] }) {
         case "patientName":
           return claim.patientName.toLowerCase().includes(term);
 
-        case "paidAmount":
+        case "paidAmount": {
           // Convert to string for includes search or try to match exact amount
           const paidAmount = claim.paidAmount.toFixed(2);
           return (
             paidAmount.includes(term) || parseFloat(term) === claim.paidAmount
           );
+        }
 
         case "all":
         default:
@@ -317,42 +409,6 @@ export default function ClaimTable({ claims: rawClaims }: { claims: Claim[] }) {
       }
     });
   }, [cleanedClaims, searchTerm, searchField]);
-
-  // Sorting function
-  const getComparator = (
-    order: Order,
-    orderBy: SortableColumn
-  ): ((a: Claim, b: Claim) => number) => {
-    return order === "desc"
-      ? (a, b) => descendingComparator(a, b, orderBy)
-      : (a, b) => -descendingComparator(a, b, orderBy);
-  };
-
-  // Descending comparator
-  const descendingComparator = (
-    a: Claim,
-    b: Claim,
-    orderBy: SortableColumn
-  ): number => {
-    // Handle different data types appropriately
-    switch (orderBy) {
-      case "dosStart":
-        return formatDate(a.dosStart).localeCompare(formatDate(b.dosStart));
-
-      case "patientName":
-        return a.patientName.localeCompare(b.patientName);
-
-      case "claimNumber":
-        return a.claimNumber.localeCompare(b.claimNumber);
-
-      case "chargedAmount":
-      case "paidAmount":
-        return a[orderBy] - b[orderBy];
-
-      default:
-        return 0;
-    }
-  };
 
   // Sort the filtered claims
   const sortedClaims = useMemo(() => {
@@ -384,6 +440,15 @@ export default function ClaimTable({ claims: rawClaims }: { claims: Claim[] }) {
           page * rowsPerPage,
           page * rowsPerPage + rowsPerPage
         );
+
+  const totalClaimsChargedAmount = filteredClaims.reduce(
+    (sum, claim) => sum + (claim.chargedAmount || 0),
+    0
+  );
+  const totalClaimsPaidAmount = filteredClaims.reduce(
+    (sum, claim) => sum + (claim.paidAmount || 0),
+    0
+  );
 
   if (!rawClaims || rawClaims.length === 0) {
     return (
@@ -506,6 +571,25 @@ export default function ClaimTable({ claims: rawClaims }: { claims: Claim[] }) {
               />
             ))}
           </TableBody>
+          <TableFooter>
+            <TableRow sx={{ backgroundColor: "rgba(0, 0, 0, 0.04)" }}>
+              <TableCell colSpan={4} align="right">
+                <Typography variant="subtitle2" fontWeight="bold">
+                  Totals ({filteredClaims.length} Claims):
+                </Typography>
+              </TableCell>
+              <TableCell>
+                <Typography variant="subtitle2" fontWeight="bold">
+                  ${totalClaimsChargedAmount.toFixed(2)}
+                </Typography>
+              </TableCell>
+              <TableCell>
+                <Typography variant="subtitle2" fontWeight="bold" color="primary">
+                  ${totalClaimsPaidAmount.toFixed(2)}
+                </Typography>
+              </TableCell>
+            </TableRow>
+          </TableFooter>
         </Table>
       </TableContainer>
 

@@ -1,8 +1,8 @@
 "use client";
 
+import { Box, Button, ButtonGroup, Chip, Divider, Paper, Typography } from "@mui/material";
 import { useState } from "react";
-import { ParsedEdiFile } from "@/types/edi";
-import { Box, Typography, Paper, Chip, Divider, Button, ButtonGroup } from "@mui/material";
+import type { ParsedEdiFile } from "@/types/edi";
 import ClaimTable from "./ClaimTable";
 import PdfExport from "./PdfExport";
 
@@ -49,7 +49,7 @@ export default function EdiViewer({ file }: { file: ParsedEdiFile }) {
           <ButtonGroup variant="outlined" sx={{ flexWrap: "wrap", gap: 0.5 }}>
             {file.checks.map((chk, idx) => (
               <Button
-                key={idx}
+                key={crypto.randomUUID()}
                 variant={activeCheckIndex === idx ? "contained" : "outlined"}
                 onClick={() => setActiveCheckIndex(idx)}
                 sx={{ textTransform: "none" }}
@@ -82,9 +82,9 @@ export default function EdiViewer({ file }: { file: ParsedEdiFile }) {
           </Typography>
           <Divider sx={{ mb: 2 }} />
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            {check.plb.map((adj, idx) => (
+            {check.plb.map((adj) => (
               <Box
-                key={idx as any}
+                key={crypto.randomUUID()}
                 sx={{
                   display: "flex",
                   justifyContent: "space-between",

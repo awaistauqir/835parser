@@ -157,7 +157,7 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
         patientControlNumber: elements[1] || "",
         claimNumber: elements[1] || "",
         providerClaimReference: "", // from REF*6R
-        icn: "", // from REF*F8 (payer claim control number)
+        icn: elements[7] || "", // from CLP07 (payer claim control number) or REF*F8
         dosStart: "",
         dosEnd: "",
         statementFromDate: "",
@@ -254,7 +254,9 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
     }
     // ICN - Payer Claim Control Number (REF*F8)
     else if (segId === "REF" && elements[1] === "F8" && currentClaim) {
-      currentClaim.icn = elements[2] || "";
+      if (elements[2]) {
+        currentClaim.icn = elements[2];
+      }
     }
 
     // Patient Insurance ID (REF*6R)
