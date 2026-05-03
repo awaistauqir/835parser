@@ -296,6 +296,7 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
         allowedAmount: 0, // from AMT*B6 per service line
         paidAmount: parseFloat(elements[3]) || 0,
         adjustments: [],
+        remarkCodes: [],
         dosStart: currentClaim.dosStart,
         dosEnd: currentClaim.dosEnd,
       };
@@ -315,6 +316,29 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
       if (category === "PR") {
         const prTotal = adjustments.reduce((sum, a) => sum + a.amount, 0);
         currentClaim.patientResponsibility += prTotal;
+      }
+    }
+
+    // Remark Codes (LQ) - Can appear at claim or service line level
+    else if (segId === "LQ") {
+      const remarkCode = elements[2] ? cleanElement(elements[2]) : "";
+      if (remarkCode) {
+        if (currentServiceLine) {
+          currentServiceLine.remarkCodes.push(remarkCode);
+        } else if (currentClaim) {
+          currentClaim.remarkCodes.push(remarkCode);
+        }
+      }
+    }
+
+    // Outpatient Adjudication Remark Codes (MOA)
+    else if (segId === "MOA" && currentClaim) {
+      // MOA remark codes are in elements 3 through 7
+      for (let i = 3; i <= 7 && i < elements.length; i++) {
+        const remarkCode = cleanElement(elements[i]);
+        if (remarkCode) {
+          currentClaim.remarkCodes.push(remarkCode);
+        }
       }
     }
 

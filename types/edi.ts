@@ -16,6 +16,7 @@ export interface ServiceLine {
   adjustments: Adjustment[];
   dosStart?: string;
   dosEnd?: string;
+  remarkCodes: string[];
 }
 
 export interface Claim {

@@ -98,6 +98,7 @@ function ServiceLineTable({ serviceLines }: { serviceLines: ServiceLine[] }) {
           <TableCell>Billed Amount</TableCell>
           <TableCell>Allowed Amt</TableCell>
           <TableCell>Adjusts</TableCell>
+          <TableCell>Remarks</TableCell>
           <TableCell>Provider Paid</TableCell>
         </TableRow>
       </TableHead>
@@ -129,6 +130,22 @@ function ServiceLineTable({ serviceLines }: { serviceLines: ServiceLine[] }) {
                     sx={{ mr: 0.5, mb: 0.5 }}
                   />
                 ))}
+              </TableCell>
+              <TableCell>
+                {svc.remarkCodes && svc.remarkCodes.length > 0 ? (
+                  svc.remarkCodes.map((code) => (
+                    <Chip
+                      key={crypto.randomUUID()}
+                      label={code}
+                      size="small"
+                      color="secondary"
+                      variant="outlined"
+                      sx={{ mr: 0.5, mb: 0.5 }}
+                    />
+                  ))
+                ) : (
+                  "-"
+                )}
               </TableCell>
               <TableCell>${svc.paidAmount.toFixed(2)}</TableCell>
             </TableRow>
