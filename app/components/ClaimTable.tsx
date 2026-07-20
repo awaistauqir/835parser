@@ -122,7 +122,7 @@ function ServiceLineTable({ serviceLines }: { serviceLines: ServiceLine[] }) {
               <TableCell>${(svc.allowedAmount || 0).toFixed(2)}</TableCell>
 
               <TableCell>
-                {svc.adjustments.map((svc, i) => (
+                {svc.adjustments.map((svc) => (
                   <Chip
                     key={crypto.randomUUID()}
                     label={`${svc.code} ${svc.amount.toFixed(2)}`}
@@ -497,10 +497,8 @@ export default function ClaimTable({ claims: rawClaims }: { claims: Claim[] }) {
     setPage(newPage);
   };
 
-  const handleChangeRowsPerPage = (
-    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
+  const handleChangeRowsPerPage = (event: { target: { value: unknown } }): void => {
+    setRowsPerPage(Number(event.target.value));
     setPage(0);
   };
 
@@ -673,7 +671,7 @@ export default function ClaimTable({ claims: rawClaims }: { claims: Claim[] }) {
           <Select
             value={rowsPerPage}
             label="Show"
-            onChange={handleChangeRowsPerPage as any}
+            onChange={handleChangeRowsPerPage}
           >
             <MenuItem value={10}>10 rows</MenuItem>
             <MenuItem value={25}>25 rows</MenuItem>
