@@ -1,20 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import {
   Box,
-  Typography,
-  CircularProgress,
-  Tabs,
-  Tab,
-  Container,
   Button,
+  CircularProgress,
+  Container,
+  Tab,
+  Tabs,
+  Typography,
 } from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import FileUpload from "./components/FileUpload";
-import EdiViewer from "./components/EdiViewer";
+import { useState } from "react";
+import type { ParsedEdiFile } from "@/types/edi";
 import { parseEdiFiles } from "./actions/parse-edi";
-import { ParsedEdiFile } from "@/types/edi";
+import EdiViewer from "./components/EdiViewer";
+import FileUpload from "./components/FileUpload";
 
 export default function HomePage() {
   const [parsedFiles, setParsedFiles] = useState<ParsedEdiFile[] | null>(null);
@@ -53,20 +53,24 @@ export default function HomePage() {
             <CircularProgress />
           ) : (
             <>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Button 
-                  variant="outlined" 
-                  startIcon={<ArrowBackIcon />} 
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  mb: 2,
+                }}
+              >
+                <Button
+                  variant="outlined"
+                  startIcon={<ArrowBackIcon />}
                   onClick={handleClear}
                 >
                   Back to Upload
                 </Button>
-                
+
                 {parsedFiles.length > 1 && (
-                  <Tabs
-                    value={tabIndex}
-                    onChange={(_, i) => setTabIndex(i)}
-                  >
+                  <Tabs value={tabIndex} onChange={(_, i) => setTabIndex(i)}>
                     {parsedFiles.map((file, i) => (
                       <Tab key={i} label={file.filename} />
                     ))}

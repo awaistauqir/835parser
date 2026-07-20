@@ -1,9 +1,9 @@
 // app/actions/parse-edi.ts
 "use server";
 
-import { parseEdi835 } from "@/lib/edi-parser";
-import { ParsedEdiFile } from "@/types/edi";
 import { z } from "zod";
+import { parseEdi835 } from "@/lib/edi-parser";
+import type { ParsedEdiFile } from "@/types/edi";
 
 const parseInputSchema = z.object({
   files: z.array(z.instanceof(File)).optional(),
@@ -11,7 +11,7 @@ const parseInputSchema = z.object({
 });
 
 export async function parseEdiFiles(
-  formData: FormData
+  formData: FormData,
 ): Promise<ParsedEdiFile[]> {
   const rawFiles = formData.getAll("files") as File[];
   const textInput = formData.get("text") as string | null;

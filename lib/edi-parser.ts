@@ -1,11 +1,11 @@
 // lib/edi-parser.ts
 import {
-  ParsedEdiFile,
-  Check,
-  Claim,
-  ServiceLine,
-  Adjustment,
+  type Adjustment,
+  type Check,
+  type Claim,
+  type ParsedEdiFile,
   PlbAdjustment,
+  type ServiceLine,
 } from "@/types/edi";
 
 const REMARK_CODE_MAP: Record<string, string> = {
@@ -27,7 +27,7 @@ const formatDate = (ediDate: string): string => {
   if (/^\d{8}$/.test(clean)) {
     return `${clean.substring(4, 6)}/${clean.substring(6, 8)}/${clean.substring(
       0,
-      4
+      4,
     )}`;
   }
   return clean;
@@ -74,7 +74,7 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
         !s.startsWith("ISA") &&
         !s.startsWith("IEA") &&
         !s.startsWith("GS") &&
-        !s.startsWith("GE")
+        !s.startsWith("GE"),
     );
 
   const checks: Check[] = [];
@@ -139,7 +139,8 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
       if (currentClaim && currentCheck) {
         // Aggregate allowed amount from service lines
         currentClaim.allowedAmount = currentClaim.serviceLines.reduce(
-          (sum, sl) => sum + sl.allowedAmount, 0
+          (sum, sl) => sum + sl.allowedAmount,
+          0,
         );
         currentCheck.claims.push(currentClaim);
       }
@@ -206,8 +207,9 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
         .trim();
       // Reformat to "Last, First"
       if (firstName) {
-        currentClaim.patientName = `${lastName}, ${firstName}${middle ? ` ${middle}` : ""
-          }`;
+        currentClaim.patientName = `${lastName}, ${firstName}${
+          middle ? ` ${middle}` : ""
+        }`;
       }
     }
 
@@ -396,7 +398,8 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
       if (currentClaim && currentCheck) {
         // Aggregate allowed amount from service lines
         currentClaim.allowedAmount = currentClaim.serviceLines.reduce(
-          (sum, sl) => sum + sl.allowedAmount, 0
+          (sum, sl) => sum + sl.allowedAmount,
+          0,
         );
         currentCheck.claims.push(currentClaim);
         currentClaim = null;
@@ -416,7 +419,8 @@ export function parseEdi835(ediText: string, filename: string): ParsedEdiFile {
   if (currentClaim && currentCheck) {
     // Aggregate allowed amount from service lines
     currentClaim.allowedAmount = currentClaim.serviceLines.reduce(
-      (sum, sl) => sum + sl.allowedAmount, 0
+      (sum, sl) => sum + sl.allowedAmount,
+      0,
     );
     currentCheck.claims.push(currentClaim);
   }

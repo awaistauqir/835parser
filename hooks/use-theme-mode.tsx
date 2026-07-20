@@ -1,7 +1,13 @@
 // hooks/use-theme-mode.tsx
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 
 export type ThemeMode = "light" | "dark";
 
@@ -31,7 +37,7 @@ export function ThemeModeProvider({ children }: { children: ReactNode }) {
       // Check system preference first
       const stored = localStorage.getItem("theme") as ThemeMode | null;
       const systemPrefersDark = window.matchMedia(
-        "(prefers-color-scheme: dark)"
+        "(prefers-color-scheme: dark)",
       ).matches;
 
       if (stored) {

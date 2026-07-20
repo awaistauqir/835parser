@@ -1,11 +1,11 @@
 // lib/pdf-generator.ts
 import jsPDF from "jspdf";
 import { autoTable } from "jspdf-autotable";
-import { ParsedEdiFile } from "@/types/edi";
+import type { ParsedEdiFile } from "@/types/edi";
 
 export function generatePdfForCheck(
   check: ParsedEdiFile["checks"][0],
-  filename: string
+  filename: string,
 ): Blob {
   const doc = new jsPDF();
 
@@ -82,21 +82,21 @@ export function generatePdfForCheck(
     y += 8;
 
     const plbReasonDescriptions: Record<string, string> = {
-      "WO": "Overpayment Recovery",
-      "FB": "Forward Balance",
-      "IR": "Interest",
-      "L6": "Interest Owed",
+      WO: "Overpayment Recovery",
+      FB: "Forward Balance",
+      IR: "Interest",
+      L6: "Interest Owed",
       "72": "Authorized Return",
-      "CS": "Adjustment (≥$50)",
-      "C5": "Temporary Allowance (<$50)",
-      "PI": "Payer Initiated Reduction",
-      "LE": "Levy",
-      "AH": "Origination Fee",
-      "AM": "Applied to Borrowed Amount",
-      "AP": "Acceleration of Benefits",
-      "B2": "Rebate",
-      "B3": "Recovery Allowance",
-      "BD": "Bad Debt Adjustment",
+      CS: "Adjustment (≥$50)",
+      C5: "Temporary Allowance (<$50)",
+      PI: "Payer Initiated Reduction",
+      LE: "Levy",
+      AH: "Origination Fee",
+      AM: "Applied to Borrowed Amount",
+      AP: "Acceleration of Benefits",
+      B2: "Rebate",
+      B3: "Recovery Allowance",
+      BD: "Bad Debt Adjustment",
     };
 
     const plbData = check.plb.map((adj) => [
@@ -107,7 +107,10 @@ export function generatePdfForCheck(
     ]);
 
     // Calculate total PLB adjustment
-    const totalPlbAdjustment = check.plb.reduce((sum, adj) => sum + adj.amount, 0);
+    const totalPlbAdjustment = check.plb.reduce(
+      (sum, adj) => sum + adj.amount,
+      0,
+    );
     plbData.push([
       "",
       "Total PLB Adjustment",
@@ -162,7 +165,7 @@ export function generatePdfForCheck(
       `Claim Details - ${formatPatientName(claim.patientName)}`,
       105,
       y,
-      { align: "center" }
+      { align: "center" },
     );
     y += 15;
 

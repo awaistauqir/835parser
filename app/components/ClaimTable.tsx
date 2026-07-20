@@ -1,35 +1,35 @@
 // app/components/ClaimTable.tsx
 "use client";
 
-import { useState, useMemo } from "react";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import SearchIcon from "@mui/icons-material/Search";
 import {
+  Box,
+  Checkbox,
+  Chip,
+  Collapse,
+  FormControl,
+  IconButton,
+  InputAdornment,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
   Table,
   TableBody,
   TableCell,
   TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Collapse,
-  Box,
-  Typography,
-  IconButton,
-  Chip,
-  TextField,
-  InputAdornment,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  TablePagination,
-  TableSortLabel,
   TableFooter,
+  TableHead,
+  TablePagination,
+  TableRow,
+  TableSortLabel,
+  TextField,
+  Typography,
 } from "@mui/material";
-import SearchIcon from "@mui/icons-material/Search";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
-import { Claim, ServiceLine } from "@/types/edi";
-
+import { useEffect, useMemo, useState } from "react";
+import type { Claim, ServiceLine } from "@/types/edi";
 
 // Helper for claim status
 const getClaimStatus = (code: string) => {
@@ -71,7 +71,7 @@ const formatDate = (dateStr: string): string => {
   if (/^\d{8}$/.test(dateStr)) {
     return `${dateStr.substring(4, 6)}/${dateStr.substring(
       6,
-      8
+      8,
     )}/${dateStr.substring(0, 4)}`;
   }
   return dateStr;
@@ -132,20 +132,18 @@ function ServiceLineTable({ serviceLines }: { serviceLines: ServiceLine[] }) {
                 ))}
               </TableCell>
               <TableCell>
-                {svc.remarkCodes && svc.remarkCodes.length > 0 ? (
-                  svc.remarkCodes.map((code) => (
-                    <Chip
-                      key={crypto.randomUUID()}
-                      label={code}
-                      size="small"
-                      color="secondary"
-                      variant="outlined"
-                      sx={{ mr: 0.5, mb: 0.5 }}
-                    />
-                  ))
-                ) : (
-                  "-"
-                )}
+                {svc.remarkCodes && svc.remarkCodes.length > 0
+                  ? svc.remarkCodes.map((code) => (
+                      <Chip
+                        key={crypto.randomUUID()}
+                        label={code}
+                        size="small"
+                        color="secondary"
+                        variant="outlined"
+                        sx={{ mr: 0.5, mb: 0.5 }}
+                      />
+                    ))
+                  : "-"}
               </TableCell>
               <TableCell>${svc.paidAmount.toFixed(2)}</TableCell>
             </TableRow>
@@ -159,7 +157,19 @@ function ServiceLineTable({ serviceLines }: { serviceLines: ServiceLine[] }) {
 // ======================
 // Claim Expandable Row
 // ======================
-function ClaimRow({ claim }: { claim: Claim }) {
+interface ClaimWithId extends Claim {
+  id: string;
+}
+
+function ClaimRow({
+  claim,
+  selected,
+  onRowClick,
+}: {
+  claim: ClaimWithId;
+  selected: boolean;
+  onRowClick: (claimId: string, event: React.MouseEvent) => void;
+}) {
   const [open, setOpen] = useState(false);
 
   const dosStart = formatDate(claim.dosStart);
@@ -185,16 +195,38 @@ function ClaimRow({ claim }: { claim: Claim }) {
   return (
     <>
       <TableRow
+        onClick={(e) => {
+          onRowClick(claim.id, e);
+        }}
         sx={{
+          cursor: "pointer",
           "&:hover": {
             backgroundColor: "rgba(0, 0, 0, 0.08)", // Darker hover effect
             transition: "background-color 0.2s ease",
           },
-          backgroundColor: open ? "rgba(0, 0, 0, 0.03)" : "inherit", // Subtle background for selected row
+          backgroundColor: selected
+            ? "rgba(25, 118, 210, 0.08)"
+            : open
+              ? "rgba(0, 0, 0, 0.03)"
+              : "inherit", // Subtle background for selected row
         }}
       >
+        <TableCell padding="checkbox" className="select-checkbox">
+          <Checkbox
+            checked={selected}
+            color="primary"
+            size="small"
+            onChange={() => {}}
+          />
+        </TableCell>
         <TableCell padding="checkbox">
-          <IconButton size="small" onClick={() => setOpen(!open)}>
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen(!open);
+            }}
+          >
             {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
           </IconButton>
         </TableCell>
@@ -208,7 +240,7 @@ function ClaimRow({ claim }: { claim: Claim }) {
       <TableRow
         sx={{ backgroundColor: open ? "rgba(25, 118, 210, 0.08)" : "inherit" }}
       >
-        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={7}>
+        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={8}>
           <Collapse in={open} timeout="auto" unmountOnExit>
             <Box margin={2}>
               <Typography variant="h6" gutterBottom>
@@ -279,7 +311,11 @@ function ClaimRow({ claim }: { claim: Claim }) {
                   <Typography variant="caption" color="text.secondary">
                     Allowed Amount
                   </Typography>
-                  <Typography variant="body2" fontWeight="bold" color="primary.main">
+                  <Typography
+                    variant="body2"
+                    fontWeight="bold"
+                    color="primary.main"
+                  >
                     ${(claim.allowedAmount || 0).toFixed(2)}
                   </Typography>
                 </Box>
@@ -290,7 +326,11 @@ function ClaimRow({ claim }: { claim: Claim }) {
                   <Typography
                     variant="body2"
                     fontWeight="bold"
-                    color={claim.patientResponsibility > 0 ? "warning.main" : "text.primary"}
+                    color={
+                      claim.patientResponsibility > 0
+                        ? "warning.main"
+                        : "text.primary"
+                    }
                   >
                     ${(claim.patientResponsibility || 0).toFixed(2)}
                   </Typography>
@@ -320,7 +360,11 @@ function ClaimRow({ claim }: { claim: Claim }) {
                   </Typography>
                   <Box display="flex" flexWrap="wrap" gap={0.5}>
                     {claim.remarkCodes.map((code) => (
-                      <Chip key={crypto.randomUUID()} label={code} size="small" />
+                      <Chip
+                        key={crypto.randomUUID()}
+                        label={code}
+                        size="small"
+                      />
                     ))}
                   </Box>
                 </Box>
@@ -337,7 +381,7 @@ function ClaimRow({ claim }: { claim: Claim }) {
 const descendingComparator = (
   a: Claim,
   b: Claim,
-  orderBy: SortableColumn
+  orderBy: SortableColumn,
 ): number => {
   // Handle different data types appropriately
   switch (orderBy) {
@@ -362,7 +406,7 @@ const descendingComparator = (
 // Sorting function
 const getComparator = (
   order: Order,
-  orderBy: SortableColumn
+  orderBy: SortableColumn,
 ): ((a: Claim, b: Claim) => number) => {
   return order === "desc"
     ? (a, b) => descendingComparator(a, b, orderBy)
@@ -381,12 +425,22 @@ export default function ClaimTable({ claims: rawClaims }: { claims: Claim[] }) {
   const [orderBy, setOrderBy] = useState<SortableColumn>("patientName");
 
   // Clean claims: remove ~ and trailing 1 from names
-  const cleanedClaims = useMemo(() => {
-    return rawClaims.map((claim) => ({
+  const cleanedClaims = useMemo<ClaimWithId[]>(() => {
+    return rawClaims.map((claim, index) => ({
       ...claim,
+      id: `${claim.claimNumber || claim.patientControlNumber || index}-${index}`,
       patientName: cleanName(claim.patientName),
     }));
   }, [rawClaims]);
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [lastClickedId, setLastClickedId] = useState<string | null>(null);
+
+  // Reset selection when claims list changes
+  useEffect(() => {
+    setSelectedIds(new Set(cleanedClaims.map((c) => c.id)));
+    setLastClickedId(null);
+  }, [cleanedClaims]);
 
   // Enhanced filter function that searches across multiple fields
   const filteredClaims = useMemo(() => {
@@ -444,7 +498,7 @@ export default function ClaimTable({ claims: rawClaims }: { claims: Claim[] }) {
   };
 
   const handleChangeRowsPerPage = (
-    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
@@ -455,17 +509,121 @@ export default function ClaimTable({ claims: rawClaims }: { claims: Claim[] }) {
       ? sortedClaims
       : sortedClaims.slice(
           page * rowsPerPage,
-          page * rowsPerPage + rowsPerPage
+          page * rowsPerPage + rowsPerPage,
         );
 
-  const totalClaimsChargedAmount = filteredClaims.reduce(
-    (sum, claim) => sum + (claim.chargedAmount || 0),
-    0
-  );
-  const totalClaimsPaidAmount = filteredClaims.reduce(
-    (sum, claim) => sum + (claim.paidAmount || 0),
-    0
-  );
+  // Selected claims based on selectedIds
+  const selectedClaims = useMemo(() => {
+    return cleanedClaims.filter((claim) => selectedIds.has(claim.id));
+  }, [cleanedClaims, selectedIds]);
+
+  const totalClaimsChargedAmount = useMemo(() => {
+    return selectedClaims.reduce(
+      (sum, claim) => sum + (claim.chargedAmount || 0),
+      0,
+    );
+  }, [selectedClaims]);
+
+  const totalClaimsPaidAmount = useMemo(() => {
+    return selectedClaims.reduce(
+      (sum, claim) => sum + (claim.paidAmount || 0),
+      0,
+    );
+  }, [selectedClaims]);
+
+  // Handle row click selection logic (with keyboard modifiers support)
+  const handleRowClick = (claimId: string, event: React.MouseEvent) => {
+    const target = event.target as HTMLElement;
+    // Do not select if clicking on buttons (like expand icon button), inputs, or links
+    if (
+      target.closest("button") ||
+      target.closest("a") ||
+      target.closest("input[type='text']")
+    ) {
+      return;
+    }
+
+    const isCheckboxClick =
+      target.closest(".select-checkbox") !== null || target.tagName === "INPUT";
+    const isCtrl = event.ctrlKey || event.metaKey;
+    const isShift = event.shiftKey;
+
+    let newSelected = new Set(selectedIds);
+
+    if (isShift && lastClickedId) {
+      // Find range of selection in current sortedClaims view
+      const claimIdsList = sortedClaims.map((c) => c.id);
+      const startIdx = claimIdsList.indexOf(lastClickedId);
+      const endIdx = claimIdsList.indexOf(claimId);
+
+      if (startIdx !== -1 && endIdx !== -1) {
+        const minIdx = Math.min(startIdx, endIdx);
+        const maxIdx = Math.max(startIdx, endIdx);
+        const rangeIds = claimIdsList.slice(minIdx, maxIdx + 1);
+
+        if (isCtrl) {
+          // Ctrl + Shift + Click: Add range to current selection
+          for (const id of rangeIds) {
+            newSelected.add(id);
+          }
+        } else {
+          // Shift + Click: Replace selection with range
+          newSelected = new Set(rangeIds);
+        }
+      } else {
+        // Fallback if index not found
+        if (isCtrl) {
+          if (newSelected.has(claimId)) {
+            newSelected.delete(claimId);
+          } else {
+            newSelected.add(claimId);
+          }
+        } else {
+          newSelected = new Set([claimId]);
+        }
+      }
+      setLastClickedId(claimId);
+    } else {
+      if (isCtrl || isCheckboxClick) {
+        // Ctrl + Click or Checkbox Click: Toggle selection
+        if (newSelected.has(claimId)) {
+          newSelected.delete(claimId);
+        } else {
+          newSelected.add(claimId);
+        }
+      } else {
+        // Normal click on row: Select only this item
+        newSelected = new Set([claimId]);
+      }
+      setLastClickedId(claimId);
+    }
+
+    setSelectedIds(newSelected);
+  };
+
+  const visibleSelectedCount = filteredClaims.filter((claim) =>
+    selectedIds.has(claim.id),
+  ).length;
+  const isAllVisibleSelected =
+    filteredClaims.length > 0 && visibleSelectedCount === filteredClaims.length;
+  const isSomeVisibleSelected =
+    visibleSelectedCount > 0 && visibleSelectedCount < filteredClaims.length;
+
+  const handleSelectAll = () => {
+    const newSelected = new Set(selectedIds);
+    if (isAllVisibleSelected) {
+      // Deselect all visible
+      for (const claim of filteredClaims) {
+        newSelected.delete(claim.id);
+      }
+    } else {
+      // Select all visible
+      for (const claim of filteredClaims) {
+        newSelected.add(claim.id);
+      }
+    }
+    setSelectedIds(newSelected);
+  };
 
   if (!rawClaims || rawClaims.length === 0) {
     return (
@@ -530,6 +688,15 @@ export default function ClaimTable({ claims: rawClaims }: { claims: Claim[] }) {
         <Table stickyHeader size="small">
           <TableHead>
             <TableRow>
+              <TableCell padding="checkbox">
+                <Checkbox
+                  indeterminate={isSomeVisibleSelected}
+                  checked={isAllVisibleSelected}
+                  onChange={handleSelectAll}
+                  size="small"
+                  color="primary"
+                />
+              </TableCell>
               <TableCell padding="checkbox" />
               <TableCell>
                 <TableSortLabel
@@ -579,20 +746,21 @@ export default function ClaimTable({ claims: rawClaims }: { claims: Claim[] }) {
             </TableRow>
           </TableHead>
           <TableBody>
-            {paginatedClaims.map((claim, index) => (
+            {paginatedClaims.map((claim) => (
               <ClaimRow
-                key={`${
-                  claim.claimNumber || claim.patientControlNumber || index
-                }${Math.random()}`}
+                key={claim.id}
                 claim={claim}
+                selected={selectedIds.has(claim.id)}
+                onRowClick={handleRowClick}
               />
             ))}
           </TableBody>
           <TableFooter>
             <TableRow sx={{ backgroundColor: "rgba(0, 0, 0, 0.04)" }}>
-              <TableCell colSpan={4} align="right">
+              <TableCell colSpan={5} align="right">
                 <Typography variant="subtitle2" fontWeight="bold">
-                  Totals ({filteredClaims.length} Claims):
+                  Totals ({selectedClaims.length} of {filteredClaims.length}{" "}
+                  Selected):
                 </Typography>
               </TableCell>
               <TableCell>
@@ -601,7 +769,11 @@ export default function ClaimTable({ claims: rawClaims }: { claims: Claim[] }) {
                 </Typography>
               </TableCell>
               <TableCell>
-                <Typography variant="subtitle2" fontWeight="bold" color="primary">
+                <Typography
+                  variant="subtitle2"
+                  fontWeight="bold"
+                  color="primary"
+                >
                   ${totalClaimsPaidAmount.toFixed(2)}
                 </Typography>
               </TableCell>

@@ -1,9 +1,9 @@
 // lib/theme-provider.tsx
 "use client";
 
-import { ThemeProvider, createTheme, CssBaseline } from "@mui/material";
-import { useThemeMode } from "@/hooks/use-theme-mode";
+import { CssBaseline, createTheme, ThemeProvider } from "@mui/material";
 import { useMemo } from "react";
+import { useThemeMode } from "@/hooks/use-theme-mode";
 
 const ThemeProviderWrapper = ({ children }: { children: React.ReactNode }) => {
   const { mode } = useThemeMode();
@@ -34,7 +34,7 @@ const ThemeProviderWrapper = ({ children }: { children: React.ReactNode }) => {
           },
         },
       }),
-    [mode] // Only recreate theme when mode changes
+    [mode], // Only recreate theme when mode changes
   );
 
   return (

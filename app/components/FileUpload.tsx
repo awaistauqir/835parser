@@ -1,16 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import {
-  Button,
-  TextField,
-  Box,
-  Typography,
-  Paper,
-  IconButton,
-} from "@mui/material";
-import UploadFileIcon from "@mui/icons-material/UploadFile";
 import ContentPasteIcon from "@mui/icons-material/ContentPaste";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
+import {
+  Box,
+  Button,
+  IconButton,
+  Paper,
+  TextField,
+  Typography,
+} from "@mui/material";
+import { useState } from "react";
 
 export default function FileUpload({
   onParse,

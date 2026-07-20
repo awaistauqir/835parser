@@ -1,10 +1,10 @@
 // app/components/ThemeToggle.tsx
 "use client";
 
-import { useTheme } from "@mui/material/styles";
-import { IconButton, Tooltip } from "@mui/material";
-import LightModeIcon from "@mui/icons-material/LightMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
+import LightModeIcon from "@mui/icons-material/LightMode";
+import { IconButton, Tooltip } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { useThemeMode } from "@/hooks/use-theme-mode";
 
 export default function ThemeToggle() {
