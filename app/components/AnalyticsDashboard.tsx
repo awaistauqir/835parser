@@ -1,6 +1,8 @@
 // app/components/AnalyticsDashboard.tsx
 "use client";
 
+import { useMemo, useState } from "react";
+
 import {
   Box,
   Button,
@@ -11,12 +13,12 @@ import {
   Typography,
   useTheme,
 } from "@mui/material";
-import { useMemo, useState } from "react";
+import { BarChart } from "@mui/x-charts/BarChart";
+import { PieChart } from "@mui/x-charts/PieChart";
+
 import { AdustmenCodes } from "@/lib/adustment-codes";
 import { RemittanceCodes } from "@/lib/remittance-codes";
 import type { Claim, ParsedEdiFile } from "@/types/edi";
-import { PieChart } from "@mui/x-charts/PieChart";
-import { BarChart } from "@mui/x-charts/BarChart";
 
 // Lookup maps for descriptions
 const adjustmentCodeMap = new Map(
