@@ -26,10 +26,21 @@ import {
   TableRow,
   TableSortLabel,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
+import { AdustmenCodes } from "@/lib/adustment-codes";
+import { RemittanceCodes } from "@/lib/remittance-codes";
 import type { Claim, ServiceLine } from "@/types/edi";
+
+// Build lookup maps for fast tooltip queries
+const adjustmentCodeMap = new Map(
+  AdustmenCodes.map((c) => [c.code, c.description]),
+);
+const remarkCodeMap = new Map(
+  RemittanceCodes.map((c) => [c.code, c.description]),
+);
 
 // Helper for claim status
 const getClaimStatus = (code: string) => {
@@ -122,27 +133,54 @@ function ServiceLineTable({ serviceLines }: { serviceLines: ServiceLine[] }) {
               <TableCell>${(svc.allowedAmount || 0).toFixed(2)}</TableCell>
 
               <TableCell>
-                {svc.adjustments.map((svc) => (
-                  <Chip
-                    key={crypto.randomUUID()}
-                    label={`${svc.code} ${svc.amount.toFixed(2)}`}
-                    size="small"
-                    sx={{ mr: 0.5, mb: 0.5 }}
-                  />
-                ))}
+                {svc.adjustments.map((adj) => {
+                  const plainCode = adj.code.includes("-")
+                    ? adj.code.split("-")[1]
+                    : adj.code;
+                  const desc =
+                    adjustmentCodeMap.get(plainCode) ||
+                    "Adjustment Reason Code";
+                  return (
+                    <Tooltip
+                      key={crypto.randomUUID()}
+                      title={`${adj.code}: ${desc}`}
+                      enterDelay={0}
+                      arrow
+                      placement="top"
+                    >
+                      <Chip
+                        label={`${adj.code} ${adj.amount.toFixed(2)}`}
+                        size="small"
+                        sx={{ mr: 0.5, mb: 0.5, cursor: "help" }}
+                      />
+                    </Tooltip>
+                  );
+                })}
               </TableCell>
               <TableCell>
                 {svc.remarkCodes && svc.remarkCodes.length > 0
-                  ? svc.remarkCodes.map((code) => (
-                      <Chip
-                        key={crypto.randomUUID()}
-                        label={code}
-                        size="small"
-                        color="secondary"
-                        variant="outlined"
-                        sx={{ mr: 0.5, mb: 0.5 }}
-                      />
-                    ))
+                  ? svc.remarkCodes.map((code) => {
+                      const desc =
+                        remarkCodeMap.get(code) ||
+                        "Remittance Advice Remark Code";
+                      return (
+                        <Tooltip
+                          key={crypto.randomUUID()}
+                          title={`${code}: ${desc}`}
+                          enterDelay={0}
+                          arrow
+                          placement="top"
+                        >
+                          <Chip
+                            label={code}
+                            size="small"
+                            color="secondary"
+                            variant="outlined"
+                            sx={{ mr: 0.5, mb: 0.5, cursor: "help" }}
+                          />
+                        </Tooltip>
+                      );
+                    })
                   : "-"}
               </TableCell>
               <TableCell>${svc.paidAmount.toFixed(2)}</TableCell>
@@ -359,13 +397,26 @@ function ClaimRow({
                     Remark Codes
                   </Typography>
                   <Box display="flex" flexWrap="wrap" gap={0.5}>
-                    {claim.remarkCodes.map((code) => (
-                      <Chip
-                        key={crypto.randomUUID()}
-                        label={code}
-                        size="small"
-                      />
-                    ))}
+                    {claim.remarkCodes.map((code) => {
+                      const desc =
+                        remarkCodeMap.get(code) ||
+                        "Remittance Advice Remark Code";
+                      return (
+                        <Tooltip
+                          key={crypto.randomUUID()}
+                          title={`${code}: ${desc}`}
+                          enterDelay={0}
+                          arrow
+                          placement="top"
+                        >
+                          <Chip
+                            label={code}
+                            size="small"
+                            sx={{ cursor: "help" }}
+                          />
+                        </Tooltip>
+                      );
+                    })}
                   </Box>
                 </Box>
               )}
@@ -497,7 +548,9 @@ export default function ClaimTable({ claims: rawClaims }: { claims: Claim[] }) {
     setPage(newPage);
   };
 
-  const handleChangeRowsPerPage = (event: { target: { value: unknown } }): void => {
+  const handleChangeRowsPerPage = (event: {
+    target: { value: unknown };
+  }): void => {
     setRowsPerPage(Number(event.target.value));
     setPage(0);
   };
