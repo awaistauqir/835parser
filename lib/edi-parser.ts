@@ -4,7 +4,6 @@ import {
   type Check,
   type Claim,
   type ParsedEdiFile,
-  PlbAdjustment,
   type ServiceLine,
 } from "@/types/edi";
 

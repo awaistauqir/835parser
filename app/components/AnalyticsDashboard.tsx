@@ -27,25 +27,65 @@ const remarkCodeMap = new Map(
   RemittanceCodes.map((c) => [c.code, c.description]),
 );
 
-const ENCOUNTER_CODES = new Set(["T1015", "T1040", "G0467", "G0470", "D0999"]);
+const ENCOUNTER_CODES = new Set([
+  "T1015",
+  "T1040",
+  "G0467",
+  "G0470",
+  "D0999",
+  "G0468",
+]);
 
 export function getClaimDashboardStatus(
   claim: Claim,
-): "Paid" | "Denied" | "Pending" {
+): "Paid" | "Denied" | "Pending" | "Recoupment" {
+  // 1. Check for recoupment/reversal:
+  // - Negative paid amount: direct takeback of funds.
+  // - Negative charged amount: reversal claim (corrected claim taking back a previous submission,
+  //   even if the original payment was $0).
+  const isRecoupment =
+    (claim.paidAmount ?? 0) < 0 ||
+    (claim.chargedAmount ?? 0) < 0 ||
+    claim.serviceLines.some(
+      (sl) => (sl.paidAmount ?? 0) < 0 || (sl.chargedAmount ?? 0) < 0,
+    );
+
+  if (isRecoupment) {
+    return "Recoupment";
+  }
+
+  // 2. Check for paid encounter codes with positive payment
   const hasPaidEncounter = claim.serviceLines.some(
-    (sl) => ENCOUNTER_CODES.has(sl.cpt) && sl.paidAmount > 0,
+    (sl) => ENCOUNTER_CODES.has(sl.cpt) && (sl.paidAmount ?? 0) > 0,
   );
+
   if (hasPaidEncounter) {
     return "Paid";
   }
+
+  // 3. Check explicit denial status code
   if (claim.claimStatusCode === "4") {
     return "Denied";
   }
+
+  // 4. Check explicit pending status codes
   const pendingCodes = ["15", "16", "17", "25"];
-  if (pendingCodes.includes(claim.claimStatusCode)) {
+  if (pendingCodes.includes(claim.claimStatusCode || "")) {
     return "Pending";
   }
-  return "Paid";
+
+  // 5. If paid amount is exactly 0 (and it's not a reversal), it is effectively a denial
+  if ((claim.paidAmount ?? 0) === 0) {
+    return "Denied";
+  }
+
+  // 6. Fallback for positive payments
+  if ((claim.paidAmount ?? 0) > 0) {
+    return "Paid";
+  }
+
+  // Default to denied if we can't determine and it's not > 0
+  return "Denied";
 }
 
 interface DashboardFilter {
@@ -68,7 +108,6 @@ export default function AnalyticsDashboard({
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === "dark";
 
-  // State to track hovered chart element for tooltip display
   const [hoveredItem, setHoveredItem] = useState<{
     label: string;
     value: string | number;
@@ -76,7 +115,6 @@ export default function AnalyticsDashboard({
     y: number;
   } | null>(null);
 
-  // Extract all claims
   const allClaims = useMemo(() => {
     return file.checks.flatMap((check) => check.claims);
   }, [file]);
@@ -87,6 +125,7 @@ export default function AnalyticsDashboard({
     let paidCount = 0;
     let deniedCount = 0;
     let pendingCount = 0;
+    let recoupmentCount = 0;
 
     let totalBilled = 0;
     let totalAllowed = 0;
@@ -94,14 +133,21 @@ export default function AnalyticsDashboard({
     let totalPR = 0;
     let totalCO = 0;
     let totalWriteOffs = 0;
+    let totalRecouped = 0;
 
-    // Financial calculations
     for (const claim of allClaims) {
       const status = getClaimDashboardStatus(claim);
       if (status === "Paid") paidCount++;
       else if (status === "Denied") deniedCount++;
       else if (status === "Pending") pendingCount++;
+      else if (status === "Recoupment") {
+        recoupmentCount++;
+        // Track the absolute value of the negative payment as recouped funds
+        totalRecouped += Math.abs(claim.paidAmount || 0);
+      }
 
+      // Note: Negative charged amounts (reversals) will naturally subtract from totalBilled,
+      // providing an accurate "Net Billed" figure across the entire file.
       totalBilled += claim.chargedAmount || 0;
       totalAllowed += claim.allowedAmount || 0;
       totalPaid += claim.paidAmount || 0;
@@ -131,17 +177,20 @@ export default function AnalyticsDashboard({
       paidCount,
       deniedCount,
       pendingCount,
+      recoupmentCount,
       totalBilled,
       totalAllowed,
       totalPaid,
       totalPR,
       totalCO,
       totalWriteOffs,
+      totalRecouped,
     };
   }, [allClaims]);
 
-  // Top Denial Reasons (Group identical CARC + RARC combinations together)
+  // Top Denial Reasons
   const topDenials = useMemo(() => {
+    // Now correctly excludes reversals/recoupments
     const deniedClaims = allClaims.filter(
       (c) => getClaimDashboardStatus(c) === "Denied",
     );
@@ -152,29 +201,17 @@ export default function AnalyticsDashboard({
     > = {};
 
     for (const claim of deniedClaims) {
-      // Find all unique CARC + RARC pairs in this claim
       const claimCARCs = new Set<string>();
       const claimRARCs = new Set<string>();
 
-      // Claim level
-      for (const adj of claim.adjustments) {
-        claimCARCs.add(adj.code);
-      }
-      for (const r of claim.remarkCodes) {
-        claimRARCs.add(r);
-      }
+      for (const adj of claim.adjustments) claimCARCs.add(adj.code);
+      for (const r of claim.remarkCodes) claimRARCs.add(r);
 
-      // Service line level
       for (const sl of claim.serviceLines) {
-        for (const adj of sl.adjustments) {
-          claimCARCs.add(adj.code);
-        }
-        for (const r of sl.remarkCodes) {
-          claimRARCs.add(r);
-        }
+        for (const adj of sl.adjustments) claimCARCs.add(adj.code);
+        for (const r of sl.remarkCodes) claimRARCs.add(r);
       }
 
-      // Create unique pairs
       const carcs = Array.from(claimCARCs);
       const rarcs = Array.from(claimRARCs);
 
@@ -186,21 +223,14 @@ export default function AnalyticsDashboard({
         const pairs: [string, string][] = [];
         if (carcs.length > 0 && rarcs.length > 0) {
           for (const c of carcs) {
-            for (const r of rarcs) {
-              pairs.push([c, r]);
-            }
+            for (const r of rarcs) pairs.push([c, r]);
           }
         } else if (carcs.length > 0) {
-          for (const c of carcs) {
-            pairs.push([c, ""]);
-          }
+          for (const c of carcs) pairs.push([c, ""]);
         } else {
-          for (const r of rarcs) {
-            pairs.push(["", r]);
-          }
+          for (const r of rarcs) pairs.push(["", r]);
         }
 
-        // De-duplicate pairs per claim so we count "affected claims"
         const seenPairs = new Set<string>();
         for (const [carc, rarc] of pairs) {
           const pairKey = `${carc}||${rarc}`;
@@ -225,20 +255,13 @@ export default function AnalyticsDashboard({
         const rarcDesc = item.rarc ? remarkCodeMap.get(item.rarc) || "" : "";
 
         let label = "Unknown Denial Reason";
-        if (item.carc && item.rarc) {
-          label = `${item.carc} + ${item.rarc}`;
-        } else if (item.carc) {
-          label = item.carc;
-        } else if (item.rarc) {
-          label = item.rarc;
-        }
+        if (item.carc && item.rarc) label = `${item.carc} + ${item.rarc}`;
+        else if (item.carc) label = item.carc;
+        else if (item.rarc) label = item.rarc;
 
         let description = "";
-        if (carcDesc && rarcDesc) {
-          description = `${carcDesc} | ${rarcDesc}`;
-        } else {
-          description = carcDesc || rarcDesc || "No details available";
-        }
+        if (carcDesc && rarcDesc) description = `${carcDesc} | ${rarcDesc}`;
+        else description = carcDesc || rarcDesc || "No details available";
 
         return {
           key: `${item.carc}||${item.rarc}`,
@@ -250,18 +273,14 @@ export default function AnalyticsDashboard({
       });
   }, [allClaims]);
 
-  // Top CARC codes (All claims)
+  // Top CARC codes
   const topAdjustments = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const claim of allClaims) {
       const uniqueCARCs = new Set<string>();
-      for (const adj of claim.adjustments) {
-        uniqueCARCs.add(adj.code);
-      }
+      for (const adj of claim.adjustments) uniqueCARCs.add(adj.code);
       for (const sl of claim.serviceLines) {
-        for (const adj of sl.adjustments) {
-          uniqueCARCs.add(adj.code);
-        }
+        for (const adj of sl.adjustments) uniqueCARCs.add(adj.code);
       }
       for (const carc of uniqueCARCs) {
         counts[carc] = (counts[carc] || 0) + 1;
@@ -304,7 +323,6 @@ export default function AnalyticsDashboard({
       .map(([payer, amount]) => ({ payer, amount }));
   }, [file]);
 
-  // Chart segment click helper
   const handleChartClick = (
     type: DashboardFilter["type"],
     value: string,
@@ -317,18 +335,36 @@ export default function AnalyticsDashboard({
     }
   };
 
-  // Render Pie Chart
+  const renderEmptyState = (msg: string) => (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        height: 160,
+        backgroundColor: isDarkMode
+          ? "rgba(255, 255, 255, 0.02)"
+          : "rgba(0, 0, 0, 0.01)",
+        borderRadius: 2,
+        border: `1px dashed ${isDarkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)"}`,
+      }}
+    >
+      <Typography variant="body2" color="text.secondary">
+        {msg}
+      </Typography>
+    </Box>
+  );
+
   const renderPieChart = () => {
-    const { paidCount, deniedCount, pendingCount } = metrics;
-    const total = paidCount + deniedCount + pendingCount;
-    if (total === 0) {
-      return renderEmptyState("No Claim Data Available");
-    }
+    const { paidCount, deniedCount, pendingCount, recoupmentCount } = metrics;
+    const total = paidCount + deniedCount + pendingCount + recoupmentCount;
+    if (total === 0) return renderEmptyState("No Claim Data Available");
 
     const pieData = [
       { id: 0, value: paidCount, label: "Paid", color: "#10b981" },
       { id: 1, value: deniedCount, label: "Denied", color: "#ef4444" },
       { id: 2, value: pendingCount, label: "Pending", color: "#f59e0b" },
+      { id: 3, value: recoupmentCount, label: "Recoupment", color: "#8b5cf6" },
     ].filter((d) => d.value > 0);
 
     return (
@@ -367,14 +403,11 @@ export default function AnalyticsDashboard({
     );
   };
 
-  // Render Horizontal Bar Chart
   const renderHorizontalBarChart = (
     data: { key: string; label: string; count: number; description?: string }[],
     type: DashboardFilter["type"],
   ) => {
-    if (data.length === 0) {
-      return renderEmptyState("No Data Available");
-    }
+    if (data.length === 0) return renderEmptyState("No Data Available");
 
     const dataset = [...data].reverse().map((d) => ({
       count: d.count,
@@ -417,14 +450,11 @@ export default function AnalyticsDashboard({
     );
   };
 
-  // Render Vertical Bar Chart (Payer, Date)
   const renderVerticalBarChart = (
     data: { label: string; amount: number; key: string }[],
     type: DashboardFilter["type"],
   ) => {
-    if (data.length === 0) {
-      return renderEmptyState("No Payments Recorded");
-    }
+    if (data.length === 0) return renderEmptyState("No Payments Recorded");
 
     const dataset = data.map((d) => ({
       amount: d.amount,
@@ -462,29 +492,8 @@ export default function AnalyticsDashboard({
     );
   };
 
-  const renderEmptyState = (msg: string) => (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        height: 160,
-        backgroundColor: isDarkMode
-          ? "rgba(255, 255, 255, 0.02)"
-          : "rgba(0, 0, 0, 0.01)",
-        borderRadius: 2,
-        border: `1px dashed ${isDarkMode ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.1)"}`,
-      }}
-    >
-      <Typography variant="body2" color="text.secondary">
-        {msg}
-      </Typography>
-    </Box>
-  );
-
   return (
     <Box sx={{ mb: 4 }}>
-      {/* Active Filter Bar */}
       {activeFilter && (
         <Box
           sx={{
@@ -533,8 +542,7 @@ export default function AnalyticsDashboard({
             </CardContent>
           </Card>
         </Grid>
-
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 2 }}>
           <Card
             sx={{
               background: isDarkMode
@@ -545,7 +553,7 @@ export default function AnalyticsDashboard({
           >
             <CardContent>
               <Typography variant="subtitle2" color="text.secondary">
-                Paid Claims
+                Paid
               </Typography>
               <Typography
                 variant="h4"
@@ -557,8 +565,7 @@ export default function AnalyticsDashboard({
             </CardContent>
           </Card>
         </Grid>
-
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 2 }}>
           <Card
             sx={{
               background: isDarkMode
@@ -569,7 +576,7 @@ export default function AnalyticsDashboard({
           >
             <CardContent>
               <Typography variant="subtitle2" color="text.secondary">
-                Denied Claims
+                Denied
               </Typography>
               <Typography
                 variant="h4"
@@ -581,8 +588,7 @@ export default function AnalyticsDashboard({
             </CardContent>
           </Card>
         </Grid>
-
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 2 }}>
           <Card
             sx={{
               background: isDarkMode
@@ -593,7 +599,7 @@ export default function AnalyticsDashboard({
           >
             <CardContent>
               <Typography variant="subtitle2" color="text.secondary">
-                Pending Claims
+                Pending
               </Typography>
               <Typography
                 variant="h4"
@@ -601,6 +607,29 @@ export default function AnalyticsDashboard({
                 sx={{ mt: 1, color: "#f59e0b" }}
               >
                 {metrics.pendingCount}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <Card
+            sx={{
+              background: isDarkMode
+                ? "linear-gradient(135deg, #4c1d95 0%, #0f172a 100%)"
+                : "linear-gradient(135deg, #ede9fe 0%, #ffffff 100%)",
+              boxShadow: 3,
+            }}
+          >
+            <CardContent>
+              <Typography variant="subtitle2" color="text.secondary">
+                Recoupments
+              </Typography>
+              <Typography
+                variant="h4"
+                fontWeight="bold"
+                sx={{ mt: 1, color: "#8b5cf6" }}
+              >
+                {metrics.recoupmentCount}
               </Typography>
             </CardContent>
           </Card>
@@ -645,6 +674,11 @@ export default function AnalyticsDashboard({
                 val: metrics.totalWriteOffs,
                 col: "error.main",
               },
+              {
+                label: "Total Recouped",
+                val: metrics.totalRecouped,
+                col: "secondary.main",
+              },
             ].map((item) => (
               <Grid size={{ xs: 6, sm: 4, md: 2 }} key={item.label}>
                 <Typography variant="caption" color="text.secondary">
@@ -673,7 +707,7 @@ export default function AnalyticsDashboard({
           <Card sx={{ minHeight: 280, boxShadow: 3 }}>
             <CardContent>
               <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                Claims Distribution (Paid vs Denied)
+                Claims Distribution
               </Typography>
               <Divider sx={{ mb: 2 }} />
               {renderPieChart()}
