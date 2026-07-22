@@ -9,7 +9,7 @@ import ThemeProviderWrapper from "@/lib/theme-provider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "EDI 835 to PDF Converter",
+  title: "EDI 835 Parser",
   description: "Convert healthcare remittance files to readable formats",
 };
 
@@ -25,16 +25,6 @@ export default function RootLayout({
           <ThemeProviderWrapper>
             {children}
             {/* Global theme toggle (positioned fixed) */}
-            <div
-              style={{
-                position: "fixed",
-                top: 16,
-                right: 16,
-                zIndex: 1000,
-              }}
-            >
-              <ThemeToggle />
-            </div>
           </ThemeProviderWrapper>
         </ThemeModeProvider>
       </body>
