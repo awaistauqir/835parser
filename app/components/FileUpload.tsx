@@ -11,6 +11,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useState } from "react";
+import { FAKE_SAMPLE_EDI } from "@/lib/sample-edi";
 
 export default function FileUpload({
   onParse,
@@ -74,8 +75,7 @@ export default function FileUpload({
         <Button
           variant="outlined"
           onClick={() => {
-            const sample = `ISA*00*...`; // truncated
-            const blob = new Blob([sample], { type: "text/plain" });
+            const blob = new Blob([FAKE_SAMPLE_EDI], { type: "text/plain" });
             const file = new File([blob], "sample.835", { type: "text/plain" });
             const fd = new FormData();
             fd.append("files", file);
